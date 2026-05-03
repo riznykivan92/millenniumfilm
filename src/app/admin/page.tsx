@@ -142,14 +142,23 @@ export default function AdminPage() {
       const file = files[i]
       setUploads(prev => prev.map((u, idx) => idx === i ? { ...u, status: 'uploading' } : u))
       try {
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('gallery_id', galleryId)
-        await fetch('/api/admin/upload', {
-          method: 'POST',
-          headers: { 'x-admin-password': password },
-          body: formData,
-        })
+  const res = await fetch('/api/admin/upload', {
+    method: 'POST',
+    headers: { 'x-admin-password': password, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      gallery_id: galleryId,
+      filename: file.name,
+      content_type: file.type,
+      file_size: file.size,
+    }),
+  })
+  const { upload_url } = await res.json()
+
+  await fetch(upload_url, {
+    method: 'PUT',
+    body: file,
+    headers: { 'Content-Type': file.type },
+  })
         setUploads(prev => prev.map((u, idx) => idx === i ? { ...u, status: 'done', progress: 100 } : u))
       } catch {
         setUploads(prev => prev.map((u, idx) => idx === i ? { ...u, status: 'error' } : u))
