@@ -269,7 +269,7 @@ export default function GalleryPage() {
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={f.download_url}
+                  src={f.preview_url}
                   alt={f.filename}
                   style={s.img}
                   loading="lazy"
