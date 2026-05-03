@@ -141,7 +141,7 @@ export default function AdminPage() {
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
       setUploads(prev => prev.map((u, idx) => idx === i ? { ...u, status: 'uploading' } : u))
-      try {
+try {
   const res = await fetch('/api/admin/upload', {
     method: 'POST',
     headers: { 'x-admin-password': password, 'Content-Type': 'application/json' },
