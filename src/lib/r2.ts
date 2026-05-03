@@ -24,13 +24,16 @@ export async function getUploadUrl(key: string, contentType: string) {
 }
 
 // Generate presigned download URL (for clients)
-export async function getDownloadUrl(key: string, filename: string, expiresIn = 3600) {
-  const command = new GetObjectCommand({
+export async function getUploadUrl(key: string, contentType: string) {
+  const command = new PutObjectCommand({
     Bucket: BUCKET,
     Key: key,
-    ResponseContentDisposition: `attachment; filename="${filename}"`,
+    ContentType: contentType,
   })
-  return getSignedUrl(r2, command, { expiresIn })
+  return getSignedUrl(r2, command, { 
+    expiresIn: 3600,
+    unhoistableHeaders: new Set(['x-amz-checksum-crc32', 'x-amz-sdk-checksum-algorithm']),
+  })
 }
 
 // Delete file from R2
