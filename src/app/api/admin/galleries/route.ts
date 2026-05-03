@@ -1,6 +1,8 @@
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { getDownloadUrl } from '@/lib/r2'
+import { checkAdminAuth } from '@/lib/auth'
 
 export async function GET(
   req: NextRequest,
