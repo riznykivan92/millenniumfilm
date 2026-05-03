@@ -9,11 +9,12 @@ export const r2 = new S3Client({
     accessKeyId: process.env.R2_ACCESS_KEY_ID!,
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
   },
+  requestChecksumCalculation: 'WHEN_REQUIRED' as any,
+  responseChecksumValidation: 'WHEN_REQUIRED' as any,
 })
 
 const BUCKET = process.env.R2_BUCKET_NAME!
 
-// Generate presigned upload URL (for admin uploads)
 export async function getUploadUrl(key: string, contentType: string) {
   const command = new PutObjectCommand({
     Bucket: BUCKET,
@@ -23,20 +24,15 @@ export async function getUploadUrl(key: string, contentType: string) {
   return getSignedUrl(r2, command, { expiresIn: 3600 })
 }
 
-// Generate presigned download URL (for clients)
-export async function getUploadUrl(key: string, contentType: string) {
-  const command = new PutObjectCommand({
+export async function getDownloadUrl(key: string, filename: string, expiresIn = 3600) {
+  const command = new GetObjectCommand({
     Bucket: BUCKET,
     Key: key,
-    ContentType: contentType,
+    ResponseContentDisposition: `attachment; filename="${filename}"`,
   })
-  return getSignedUrl(r2, command, { 
-    expiresIn: 3600,
-    unhoistableHeaders: new Set(['x-amz-checksum-crc32', 'x-amz-sdk-checksum-algorithm']),
-  })
+  return getSignedUrl(r2, command, { expiresIn })
 }
 
-// Delete file from R2
 export async function deleteFile(key: string) {
   await r2.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }))
 }
