@@ -1,48 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { checkAdminAuth } from '@/lib/auth'
+import { getDownloadUrl } from '@/lib/r2'
 
-export async function POST(req: NextRequest) {
-  if (!checkAdminAuth(req)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { slug: string } }
+) {
+  const { slug } = params
 
-  const { client_name, slug, expires_days } = await req.json()
-
-  if (!client_name || !slug) {
-    return NextResponse.json({ error: 'client_name and slug required' }, { status: 400 })
-  }
-
-  const expires_at = expires_days
-    ? new Date(Date.now() + expires_days * 24 * 60 * 60 * 1000).toISOString()
-    : null
-
-  const { data, error } = await supabaseAdmin()
+  const { data: gallery, error: gError } = await supabaseAdmin()
     .from('galleries')
-    .insert({ client_name, slug, expires_at })
-    .select()
+    .select('*')
+    .eq('slug', slug)
     .single()
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  if (gError || !gallery) {
+    return NextResponse.json({ error: 'Gallery not found' }, { status: 404 })
   }
 
-  return NextResponse.json({ gallery: data })
-}
-
-export async function GET(req: NextRequest) {
-  if (!checkAdminAuth(req)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (gallery.expires_at && new Date(gallery.expires_at) < new Date()) {
+    return NextResponse.json({ error: 'Gallery expired' }, { status: 410 })
   }
 
-  const { data, error } = await supabaseAdmin()
-    .from('galleries')
-    .select('*, files(count)')
-    .order('created_at', { ascending: false })
+  const { data: files, error: fError } = await supabaseAdmin()
+    .from('files')
+    .select('*')
+    .eq('gallery_id', gallery.id)
+    .order('created_at', { ascending: true })
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  if (fError) {
+    return NextResponse.json({ error: fError.message }, { status: 500 })
   }
 
-  return NextResponse.json({ galleries: data })
+  const publicBase = process.env.R2_PUBLIC_URL
+
+  const filesWithUrls = await Promise.all(
+    (files || []).map(async (f) => ({
+      ...f,
+      // Public URL for fast preview in browser
+      preview_url: `${publicBase}/${f.file_key}`,
+      // Signed URL for actual download (forces download, 1hr expiry)
+      download_url: await getDownloadUrl(f.file_key, f.filename),
+    }))
+  )
+
+  return NextResponse.json({ gallery, files: filesWithUrls })
 }
