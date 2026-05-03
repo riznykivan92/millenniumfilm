@@ -7,6 +7,7 @@ interface GalleryFile {
   filename: string
   file_type: 'photo' | 'video'
   file_size: number
+  preview_url: string
   download_url: string
 }
 
@@ -320,10 +321,10 @@ export default function GalleryPage() {
 
           <div style={s.lbInner} onClick={e => e.stopPropagation()}>
             {lbFile.file_type === 'video' ? (
-              <video controls autoPlay style={s.lbMedia} src={lbFile.download_url} />
+              <video controls autoPlay style={s.lbMedia} src={lbFile.preview_url} />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={lbFile.download_url} alt={lbFile.filename} style={s.lbMedia} />
+              <img src={lbFile.preview_url} alt={lbFile.filename} style={s.lbMedia} />
             )}
           </div>
 
