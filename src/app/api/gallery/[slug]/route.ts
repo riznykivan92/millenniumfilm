@@ -8,7 +8,6 @@ export async function GET(
 ) {
   const { slug } = params
 
-  // Get gallery
   const { data: gallery, error: gError } = await supabaseAdmin()
     .from('galleries')
     .select('*')
@@ -19,12 +18,10 @@ export async function GET(
     return NextResponse.json({ error: 'Gallery not found' }, { status: 404 })
   }
 
-  // Check expiry
   if (gallery.expires_at && new Date(gallery.expires_at) < new Date()) {
     return NextResponse.json({ error: 'Gallery expired' }, { status: 410 })
   }
 
-  // Get files
   const { data: files, error: fError } = await supabaseAdmin()
     .from('files')
     .select('*')
@@ -35,10 +32,12 @@ export async function GET(
     return NextResponse.json({ error: fError.message }, { status: 500 })
   }
 
-  // Generate signed download URLs for each file
+  const publicBase = process.env.R2_PUBLIC_URL
+
   const filesWithUrls = await Promise.all(
     (files || []).map(async (f) => ({
       ...f,
+      preview_url: `${publicBase}/${f.file_key}`,
       download_url: await getDownloadUrl(f.file_key, f.filename),
     }))
   )
