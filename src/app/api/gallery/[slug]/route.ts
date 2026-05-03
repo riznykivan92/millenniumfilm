@@ -34,7 +34,7 @@ export async function GET(
     return NextResponse.json({ error: fError.message }, { status: 500 })
   }
 
-  const publicBase = process.env.R2_PUBLIC_URL
+  const publicBase = process.env.NEXT_PUBLIC_R2_URL
 
   const filesWithUrls = await Promise.all(
     (files || []).map(async (f) => ({
