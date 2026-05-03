@@ -47,4 +47,20 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({ galleries: data })
+  export async function DELETE(req: NextRequest) {
+  if (!checkAdminAuth(req)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { id } = await req.json()
+
+  const { error } = await supabaseAdmin()
+    .from('galleries')
+    .delete()
+    .eq('id', id)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ ok: true })
+}
 }
