@@ -86,24 +86,15 @@ export default function AdminPage() {
 
       try {
         // Get presigned URL
-        const res = await fetch('/api/admin/upload', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            gallery_id: galleryId,
-            filename: file.name,
-            content_type: file.type,
-            file_size: file.size,
-          }),
-        })
-        const { upload_url } = await res.json()
+     const formData = new FormData()
+formData.append('file', file)
+formData.append('gallery_id', galleryId)
 
-        // Upload directly to R2
-        await fetch(upload_url, {
-          method: 'PUT',
-          body: file,
-          headers: { 'Content-Type': file.type },
-        })
+await fetch('/api/admin/upload', {
+  method: 'POST',
+  headers: { 'x-admin-password': password },
+  body: formData,
+})
 
         setUploads(prev => prev.map((u, idx) => idx === i ? { ...u, status: 'done', progress: 100 } : u))
       } catch {
