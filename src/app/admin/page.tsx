@@ -11,7 +11,6 @@ interface Gallery {
 }
 
 interface UploadFile {
-  file: File
   progress: number
   status: 'pending' | 'uploading' | 'done' | 'error'
   name: string
@@ -41,11 +40,13 @@ export default function AdminPage() {
   const [loadingFiles, setLoadingFiles] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const headers = { 'x-admin-password': password, 'Content-Type': 'application/json' }
+  const authHeaders = { 'x-admin-password': password, 'Content-Type': 'application/json' }
 
   async function login() {
     setLoading(true)
-    const res = await fetch('/api/admin/galleries', { headers: { 'x-admin-password': password } })
+    const res = await fetch('/api/admin/galleries', {
+      headers: { 'x-admin-password': password }
+    })
     if (res.ok) {
       const data = await res.json()
       setGalleries(data.galleries)
@@ -57,7 +58,9 @@ export default function AdminPage() {
   }
 
   async function loadGalleries() {
-    const res = await fetch('/api/admin/galleries', { headers: { 'x-admin-password': password } })
+    const res = await fetch('/api/admin/galleries', {
+      headers: { 'x-admin-password': password }
+    })
     if (res.ok) {
       const data = await res.json()
       setGalleries(data.galleries)
@@ -69,7 +72,7 @@ export default function AdminPage() {
     setCreating(true)
     const res = await fetch('/api/admin/galleries', {
       method: 'POST',
-      headers,
+      headers: authHeaders,
       body: JSON.stringify({
         client_name: form.client_name,
         slug: form.slug.toLowerCase().replace(/\s+/g, '-'),
@@ -87,7 +90,7 @@ export default function AdminPage() {
     if (!confirm(`Delete gallery "${name}"? This cannot be undone.`)) return
     await fetch('/api/admin/galleries', {
       method: 'DELETE',
-      headers,
+      headers: authHeaders,
       body: JSON.stringify({ id }),
     })
     await loadGalleries()
@@ -115,7 +118,7 @@ export default function AdminPage() {
     if (!confirm(`Delete ${selectedFiles.size} file(s)?`)) return
     await fetch('/api/admin/files', {
       method: 'DELETE',
-      headers,
+      headers: authHeaders,
       body: JSON.stringify({ file_ids: Array.from(selectedFiles) }),
     })
     setSelectedFiles(new Set())
@@ -134,31 +137,27 @@ export default function AdminPage() {
   async function uploadFiles(galleryId: string, files: File[]) {
     setUploading(true)
     const uploadList: UploadFile[] = files.map(f => ({
-      file: f, progress: 0, status: 'pending', name: f.name
+      progress: 0, status: 'pending', name: f.name
     }))
     setUploads(uploadList)
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
       setUploads(prev => prev.map((u, idx) => idx === i ? { ...u, status: 'uploading' } : u))
-try {
-  const res = await fetch('/api/admin/upload', {
-    method: 'POST',
-    headers: { 'x-admin-password': password, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      gallery_id: galleryId,
-      filename: file.name,
-      content_type: file.type,
-      file_size: file.size,
-    }),
-  })
-  const { upload_url } = await res.json()
 
-  await fetch(upload_url, {
-    method: 'PUT',
-    body: file,
-    headers: { 'Content-Type': file.type },
-  })
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('gallery_id', galleryId)
+
+        const res = await fetch('/api/admin/upload', {
+          method: 'POST',
+          headers: { 'x-admin-password': password },
+          body: formData,
+        })
+
+        if (!res.ok) throw new Error('Upload failed')
+
         setUploads(prev => prev.map((u, idx) => idx === i ? { ...u, status: 'done', progress: 100 } : u))
       } catch {
         setUploads(prev => prev.map((u, idx) => idx === i ? { ...u, status: 'error' } : u))
@@ -168,7 +167,6 @@ try {
     setUploading(false)
     await loadGalleries()
 
-    // Refresh file list if expanded
     if (activeGallery && expandedGallery === activeGallery.id) {
       await loadGalleryFiles(activeGallery.id, activeGallery.slug)
     }
@@ -183,6 +181,7 @@ try {
   function copyLink(slug: string) {
     const url = `${window.location.origin}/gallery/${slug}`
     navigator.clipboard.writeText(url)
+    alert('Link copied!')
   }
 
   function autoSlug(name: string) {
@@ -283,19 +282,11 @@ try {
                   >
                     Upload
                   </button>
-                  <button
-                    style={s.btnOutline}
-                    onClick={() => loadGalleryFiles(g.id, g.slug)}
-                  >
+                  <button style={s.btnOutline} onClick={() => loadGalleryFiles(g.id, g.slug)}>
                     {loadingFiles === g.id ? '…' : expandedGallery === g.id ? 'Hide Files' : 'View Files'}
                   </button>
                   <a href={`/gallery/${g.slug}`} target="_blank" style={s.btnOutline}>Preview</a>
-                  <button
-                    style={s.btnDanger}
-                    onClick={() => deleteGallery(g.id, g.client_name)}
-                  >
-                    Delete
-                  </button>
+                  <button style={s.btnDanger} onClick={() => deleteGallery(g.id, g.client_name)}>Delete</button>
                 </div>
               </div>
 
@@ -305,25 +296,17 @@ try {
                   {selectedFiles.size > 0 && (
                     <div style={s.fileListToolbar}>
                       <span style={s.selCount}>{selectedFiles.size} selected</span>
-                      <button
-                        style={s.btnDanger}
-                        onClick={() => deleteSelectedFiles(g.id, g.slug)}
-                      >
+                      <button style={s.btnDanger} onClick={() => deleteSelectedFiles(g.id, g.slug)}>
                         Delete Selected
                       </button>
                     </div>
                   )}
-                  {galleryFiles[g.id].length === 0 && (
-                    <div style={s.empty}>No files in this gallery.</div>
-                  )}
+                  {galleryFiles[g.id].length === 0 && <div style={s.empty}>No files in this gallery.</div>}
                   <div style={s.fileGrid}>
                     {galleryFiles[g.id].map(f => (
                       <div
                         key={f.id}
-                        style={{
-                          ...s.fileCard,
-                          ...(selectedFiles.has(f.id) ? s.fileCardSelected : {}),
-                        }}
+                        style={{ ...s.fileCard, ...(selectedFiles.has(f.id) ? s.fileCardSelected : {}) }}
                         onClick={() => toggleFileSelect(f.id)}
                       >
                         {f.file_type === 'photo' ? (
@@ -334,9 +317,7 @@ try {
                             <span style={s.videoLabel}>▶ VIDEO</span>
                           </div>
                         )}
-                        {selectedFiles.has(f.id) && (
-                          <div style={s.fileCheckmark}>✓</div>
-                        )}
+                        {selectedFiles.has(f.id) && <div style={s.fileCheckmark}>✓</div>}
                         <div style={s.fileName}>{f.filename}</div>
                         <div style={s.fileSize}>{formatSize(f.file_size)}</div>
                       </div>
@@ -365,7 +346,7 @@ try {
                   {u.status === 'pending' && 'Waiting…'}
                   {u.status === 'uploading' && 'Uploading…'}
                   {u.status === 'done' && '✓ Done'}
-                  {u.status === 'error' && '✗ Error'}
+                  {u.status === 'error' && '✗ Error — file too large (max 4.5MB)'}
                 </div>
               </div>
             ))}
@@ -411,7 +392,7 @@ const s: Record<string, React.CSSProperties> = {
   fileListToolbar: { display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' },
   selCount: { fontSize: '10px', letterSpacing: '0.25em', textTransform: 'uppercase' as const, color: 'var(--gold)' },
   fileGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '8px' },
-  fileCard: { position: 'relative' as const, cursor: 'pointer', border: '1px solid rgba(201,168,76,0.08)', overflow: 'hidden', transition: 'border-color 0.2s' },
+  fileCard: { position: 'relative' as const, cursor: 'pointer', border: '1px solid rgba(201,168,76,0.08)', overflow: 'hidden' },
   fileCardSelected: { borderColor: 'var(--gold)', outline: '2px solid var(--gold)' },
   fileThumb: { width: '100%', aspectRatio: '1', objectFit: 'cover' as const, display: 'block', filter: 'brightness(0.85)' },
   videoFileThumb: { width: '100%', aspectRatio: '1', background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center' },
