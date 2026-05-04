@@ -13,23 +13,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  export async function POST(req: NextRequest) {
-  if (!checkAdminAuth(req)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  let file: File | null = null
-  let gallery_id: string | null = null
-
-  const contentType = req.headers.get('content-type') || ''
-  
-  if (contentType.includes('multipart/form-data')) {
-    const formData = await req.formData()
-    file = formData.get('file') as File
-    gallery_id = formData.get('gallery_id') as string
-  } else {
-    return NextResponse.json({ error: 'Invalid content type' }, { status: 400 })
-  }
+  const formData = await req.formData()
+  const file = formData.get('file') as File
+  const gallery_id = formData.get('gallery_id') as string
 
   if (!file || !gallery_id) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
